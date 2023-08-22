@@ -10,7 +10,7 @@ ORDER BY Location,date
 
 
 -- Looking at death percentages over time 
-SELECT Location, date, total_cases, total_deaths, (CAST(total_deaths AS FLOAT)/CAST(total_cases AS FLOAT))*100 AS death_percentage
+SELECT Location, date, total_cases, total_deaths, (CAST(total_deaths AS INT)/CAST(total_cases AS INT))*100 AS death_percentage
 FROM PortfolioProject..covid_deaths$
 ORDER BY Location, date
 
@@ -74,6 +74,37 @@ SELECT *, (rolling_vaccinated_population/population)*100 AS vaccinated_populatio
 FROM PopulationvsVaccination
 
 
+--For Tableau:
+--Creating view for global covid death percentage 
+CREATE VIEW global_death_percentage AS
+SELECT SUM(new_cases) AS total_cases, SUM(CAST(new_deaths AS INT)) AS total_deaths, SUM(CAST(new_deaths AS INT))/SUM(new_cases)*100 as death_percentage
+FROM PortfolioProject..covid_deaths$
+WHERE continent IS NOT NULL
+
+--Creating view for total death count
+CREATE VIEW global_total_death_count AS
+SELECT Location, SUM(CAST(new_deaths AS INT)) AS total_death_count
+FROM PortfolioProject..covid_deaths$
+WHERE continent IS NULL
+AND location NOT IN('High income','Upper middle income','Lower middle income','Low income','World','European Union','International')
+GROUP BY Location
+
+--Create view for infected population percentage
+CREATE VIEW global_infected_population_percentage AS
+SELECT Location, population,MAX(CAST(total_cases AS INT)) AS max_infection_count,MAX((CAST(total_cases AS INT)/population))*100 AS infected_population_percent
+FROM PortfolioProject..covid_deaths$
+WHERE continent IS NOT NULL
+GROUP BY Location, population
+
+
+--Create view for infected population percentage over time
+CREATE VIEW global_infected_population_percentage_date AS
+SELECT Location, date, population,MAX(CAST(total_cases AS INT)) AS max_infection_count,MAX((CAST(total_cases AS INT)/population))*100 AS infected_population_percent
+FROM PortfolioProject..covid_deaths$
+WHERE continent IS NOT NULL
+GROUP BY Location, population,date
+
+
 --Creating view for vaccinated_population_percentage
 CREATE VIEW vaccinated_population_percentage AS
 SELECT cd.continent, cd.location,cd.date, cd.population, CAST(cv.new_vaccinations AS FLOAT) AS new_vaccinations, SUM(CAST(cv.new_vaccinations AS FLOAT)) OVER (PARTITION BY cd.Location ORDER BY cv.location,cv.date) AS rolling_vaccinated_population
@@ -84,6 +115,3 @@ JOIN PortfolioProject..covid_vaccinations$ AS cv
 	AND cd.location = cv.location
 WHERE cd.continent IS NOT NULL
 
---Looking at the view created
-SELECT * 
-FROM vaccinated_population_percentage
